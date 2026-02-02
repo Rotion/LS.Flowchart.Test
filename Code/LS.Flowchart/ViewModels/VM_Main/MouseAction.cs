@@ -1,4 +1,8 @@
-﻿using System;
+﻿using LS.Flowchart.Tools;
+using LS.WPF.Core.MVVM;
+using System;
+using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace LS.Flowchart.ViewModels
@@ -11,6 +15,26 @@ namespace LS.Flowchart.ViewModels
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             GlobalData.LastActivationTime = DateTime.Now;
+
+            try
+            {
+                if (SelectLine != null)
+                {
+                    //判断是否在控件上，非起始控件
+                    Point mousePos = Mouse.GetPosition(TabSelectItem.Content as Canvas);
+                    //获取鼠标下的控件
+                    var line = VisualTreeHelperExtensions.GetArrowPolylineUnderPoint(TabSelectItem.Content as Canvas, mousePos);
+                    if (line == null)
+                    {
+                        //不在控件上，取消选中                    
+                        SelectLine = null;
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                LogOperate.Error("SelectLine 处理", ex);
+            }
         }
 
         private void Window_TouchUp(object sender, TouchEventArgs e)
