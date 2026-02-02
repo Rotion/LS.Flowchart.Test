@@ -1,0 +1,172 @@
+﻿using Serein.Library.Api;
+using Serein.NodeFlow.Model;
+using Serein.NodeFlow.Model.Nodes;
+using Serein.Workbench.Node.ViewModel;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+
+namespace Serein.Workbench.Node.View
+{
+    /// <summary>
+    /// ScriptNodeControl.xaml 的交互逻辑
+    /// </summary>
+    public partial class ScriptNodeControl : NodeControlBase , INodeJunction
+    {
+        private ScriptNodeControlViewModel viewModel => (ScriptNodeControlViewModel)ViewModel;
+        private bool _isUpdating = false;    // 防止重复更新
+
+        /// <summary>
+        /// BaseNodesView.xaml 准备节点预览入口
+        /// </summary>
+        public ScriptNodeControl()
+        {
+
+            var env = App.GetService<IFlowEnvironment>();
+            base.ViewModel = new ScriptNodeControlViewModel(new SingleScriptNode(env));
+            base.ViewModel.IsEnabledOnView = false;
+            base.DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[脚本节点]";
+            InitializeComponent();
+        }
+
+        /// <summary>
+        /// 流程运行环境创建节点入口
+        /// </summary>
+        /// <param name="viewModel"></param>
+        public ScriptNodeControl(ScriptNodeControlViewModel viewModel) : base(viewModel)
+        {
+            DataContext = viewModel;
+            viewModel.NodeModel.DisplayName = "[脚本节点]"; 
+            InitializeComponent();
+            codeEditor.Text = viewModel.Script ?? string.Empty; // 更新代码编辑器内容
+        }
+
+
+
+
+        /// <summary>
+        /// 入参控制点（可能有，可能没）
+        /// </summary>
+        JunctionControlBase INodeJunction.ExecuteJunction => this.ExecuteJunctionControl;
+
+        /// <summary>
+        /// 下一个调用方法控制点（可能有，可能没）
+        /// </summary>
+        JunctionControlBase INodeJunction.NextStepJunction => this.NextStepJunctionControl;
+
+        /// <summary>
+        /// 返回值控制点（可能有，可能没）
+        /// </summary>
+        JunctionControlBase INodeJunction.ReturnDataJunction => this.ResultJunctionControl;
+
+        /// <summary>
+        /// 方法入参控制点（可能有，可能没）
+        /// </summary>
+        JunctionControlBase[] INodeJunction.ArgDataJunction => GetArgJunction();
+
+        private JunctionControlBase[] GetArgJunction()
+        {
+            // 获取 MethodDetailsControl 实例
+            var methodDetailsControl = this.MethodDetailsControl;
+            var itemsControl = FindVisualChild<ItemsControl>(methodDetailsControl); // 查找 ItemsControl
+            
+            if (itemsControl != null && base.ViewModel.NodeModel.MethodDetails != null)
+            {
+                var argDataJunction = new JunctionControlBase[base.ViewModel.NodeModel.MethodDetails.ParameterDetailss.Length];
+                var controls = new List<JunctionControlBase>();
+
+                for (int i = 0; i < itemsControl.Items.Count; i++)
+                {
+                    var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as FrameworkElement;
+                    if (container != null)
+                    {
+                        var argControl = FindVisualChild<ArgJunctionControl>(container);
+                        if (argControl != null)
+                        {
+                            controls.Add(argControl); // 收集 ArgJunctionControl 实例
+                        }
+                    }
+                }
+                return argDataJunction = controls.ToArray();
+            }
+            return [];
+        }
+
+        private void codeEditor_TextChanged(object sender, EventArgs e)
+        {
+            viewModel.Script = codeEditor.Text; 
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if false
+        // 每次输入时重置定时器
+        private void RichTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
+        }
+
+        // 定时器事件，用户停止输入后触发
+        private async void DebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _debounceTimer.Stop();
+
+            if (_isUpdating)
+                return;
+
+            // 开始后台处理语法分析和高亮
+            _isUpdating = true;
+            await Task.Run(() => HighlightKeywordsAsync(viewModel.Script));
+        }
+
+        // 异步执行语法高亮操作
+        private async Task HighlightKeywordsAsync(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+            // 模拟语法分析和高亮（可以替换为实际逻辑）
+            var highlightedText = text;
+
+            // 在 UI 线程中更新 RichTextBox 的内容
+            await Dispatcher.BeginInvoke(() =>
+            {
+                var range = new TextRange(richTextBox.Document.ContentStart, richTextBox.Document.ContentEnd);
+                range.Text = highlightedText;
+            });
+
+            _isUpdating = false;
+        }
+
+#endif
+
+
+
+
+    }
+}

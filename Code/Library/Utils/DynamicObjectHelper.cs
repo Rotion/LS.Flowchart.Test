@@ -1,0 +1,597 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection.Emit;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using System.ComponentModel;
+
+namespace Serein.Library.Utils
+{
+    /// <summary>
+    /// 通过字典构造动态对象
+    /// </summary>
+    public class DynamicObjectHelper
+    {
+        // 类型缓存，键为类型的唯一名称（可以根据实际需求调整生成方式）
+        private static Dictionary<string, Type> typeCache = new Dictionary<string, Type>();
+        private static readonly AssemblyBuilder AssemblyBuilder;
+        private static readonly ModuleBuilder ModuleBuilder;
+
+        static DynamicObjectHelper() // 静态构造函数
+        {
+            var assemblyName = new AssemblyName("DynamicAssembly");
+            AssemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            ModuleBuilder = AssemblyBuilder.DefineDynamicModule("MainModule");
+        }
+
+
+        /// <summary>
+        /// 获取运行时创建过的类型
+        /// </summary>
+        /// <param name="className"></param>
+        /// <returns></returns>
+        public static Type GetCacheType(string className)
+        {
+            if(typeCache.TryGetValue(className, out var type))
+            {
+                return type;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 解析字典属性并创建对象实例
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
+
+        public static object Resolve(IDictionary<string, object> properties, string typeName)
+        {
+            var obj = CreateObjectWithProperties(properties, typeName);
+            //SetPropertyValues(obj, properties);
+            return obj;
+        }
+
+        /// <summary>
+        /// 尝试解析字典属性并创建对象实例
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        public static bool TryResolve(IDictionary<string, object> properties, string typeName, out object result)
+        {
+            result = CreateObjectWithProperties(properties, typeName);
+            bool success = SetPropertyValuesWithValidation(result, properties);
+            return success;
+
+        }
+
+        /// <summary>
+        /// 打印对象属性及类型
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="indent"></param>
+        public static void PrintObjectProperties(object obj, string indent = "")
+        {
+            var objType = obj.GetType();
+            foreach (var prop in objType.GetProperties())
+            {
+                var value = prop.GetValue(obj);
+                SereinEnv.WriteLine(InfoType.INFO, $"{indent}{prop.Name} (Type: {prop.PropertyType.Name}): {value}");
+
+                if (value != null)
+                {
+                    if (prop.PropertyType.IsArray) // 处理数组类型
+                    {
+                        var array = (Array)value;
+                        SereinEnv.WriteLine(InfoType.INFO, $"{indent}{prop.Name} is an array with {array.Length} elements:");
+                        for (int i = 0; i < array.Length; i++)
+                        {
+                            var element = array.GetValue(i);
+                            if (element != null && element.GetType().IsClass && !(element is string))
+                            {
+                                SereinEnv.WriteLine(InfoType.INFO, $"{indent}\tArray[{i}] (Type: {element.GetType().Name}) contains a nested object:");
+                                PrintObjectProperties(element, indent + "\t\t");
+                            }
+                            else
+                            {
+                                SereinEnv.WriteLine(InfoType.INFO, $"{indent}\tArray[{i}] (Type: {element?.GetType().Name}): {element}");
+                            }
+                        }
+                    }
+                    else if (value.GetType().IsClass && !(value is string)) // 处理嵌套对象
+                    {
+                        SereinEnv.WriteLine(InfoType.INFO, $"{indent}{prop.Name} contains a nested object:");
+                        PrintObjectProperties(value, indent + "\t");
+                    }
+                }
+            }
+        }
+
+
+
+        /// <summary>
+        /// 创建具有属性的类型
+        /// </summary>
+        /// <param name="properties">成员属性名称及类型</param>
+        /// <param name="typeName">类型名称</param>
+        /// <param name="isOverlay">是否覆盖</param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static Type CreateTypeWithProperties(IDictionary<string, Type> properties, string typeName, bool isOverlay = false)
+        {
+            // 如果类型已经缓存，且没有显示指定需要覆盖，直接返回缓存的类型
+            if (typeCache.ContainsKey(typeName) && !isOverlay)
+            {
+                return typeCache[typeName];
+            }
+
+            // 定义动态程序集和模块
+            /*var assemblyName = new AssemblyName("DynamicAssembly");
+            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            var moduleBuilder = AssemblyBuilder.DefineDynamicModule("MainModule");
+            */
+            // 定义动态类型
+            var typeBuilder = ModuleBuilder.DefineType(typeName, TypeAttributes.Public);
+
+            // 为每个属性名和值添加相应的属性到动态类型中
+            foreach (var kvp in properties)
+            {
+                string propName = kvp.Key;
+                object propValue = kvp.Value;
+                Type propType;
+
+                if (propValue is IList<Dictionary<string, Type>>) // 处理数组类型
+                {
+                    var nestedPropValue = (propValue as IList<Dictionary<string, Type>>)[0];
+                    var nestedType = CreateTypeWithProperties(nestedPropValue, $"{propName}Element");
+                    propType = nestedType.GetType().MakeArrayType(); // 创建数组类型
+                }
+                else if (propValue is Dictionary<string, Type> nestedProperties)
+                {
+                    // 如果值是嵌套的字典，递归创建嵌套类型
+                    propType = CreateTypeWithProperties(nestedProperties, $"{typeName}_{propName}").GetType();
+                }
+                else if (propValue is Type type)
+                {
+                    // 如果是普通类型，使用值的类型
+                    propType = type ?? typeof(object);
+                }
+                else
+                {
+                    throw new Exception($"无法解析的类型：{propValue}");
+                }
+
+                // 定义私有字段和公共属性
+                var fieldBuilder = typeBuilder.DefineField("_" + propName, propType, FieldAttributes.Private);
+                var propertyBuilder = typeBuilder.DefineProperty(propName, PropertyAttributes.HasDefault, propType, null);
+
+                // 定义 getter 方法
+                var getMethodBuilder = typeBuilder.DefineMethod(
+                    "get_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    propType,
+                    Type.EmptyTypes);
+
+                var getIL = getMethodBuilder.GetILGenerator();
+                getIL.Emit(OpCodes.Ldarg_0);
+                getIL.Emit(OpCodes.Ldfld, fieldBuilder);
+                getIL.Emit(OpCodes.Ret);
+
+                // 定义 setter 方法
+                var setMethodBuilder = typeBuilder.DefineMethod(
+                    "set_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    null,
+                    new Type[] { propType });
+
+                var setIL = setMethodBuilder.GetILGenerator();
+                setIL.Emit(OpCodes.Ldarg_0);
+                setIL.Emit(OpCodes.Ldarg_1);
+                setIL.Emit(OpCodes.Stfld, fieldBuilder);
+                setIL.Emit(OpCodes.Ret);
+
+                // 将 getter 和 setter 方法添加到属性
+                propertyBuilder.SetGetMethod(getMethodBuilder);
+                propertyBuilder.SetSetMethod(setMethodBuilder);
+            }
+
+            // 创建类型并缓存
+            var dynamicType = typeBuilder.CreateType();
+            typeCache[typeName] = dynamicType;
+
+            // 创建对象实例
+            return dynamicType;
+        }
+
+        /// <summary>
+        /// 创建继承通知接口、具有属性的类型
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <param name="isOverlay"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public static Type CreateTypeWithINotifyPropertyChanged(IDictionary<string, Type> properties, string typeName, bool isOverlay = false)
+        {
+            if (typeCache.ContainsKey(typeName) && !isOverlay)
+                return typeCache[typeName];
+
+            var typeBuilder = ModuleBuilder.DefineType(typeName, TypeAttributes.Public | TypeAttributes.Class);
+            typeBuilder.AddInterfaceImplementation(typeof(INotifyPropertyChanged));
+
+            // 添加 PropertyChanged 字段
+            var eventHandlerType = typeof(PropertyChangedEventHandler);
+            var propertyChangedField = typeBuilder.DefineField("PropertyChanged", eventHandlerType, FieldAttributes.Private);
+
+            // 添加 PropertyChanged 事件
+            var eventBuilder = typeBuilder.DefineEvent("PropertyChanged", EventAttributes.None, eventHandlerType);
+
+            // add_PropertyChanged
+            var addMethod = typeBuilder.DefineMethod("add_PropertyChanged", MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual | MethodAttributes.HideBySig, null, new[] { eventHandlerType });
+            {
+
+                var il = addMethod.GetILGenerator();
+                var combine = typeof(Delegate).GetMethod("Combine", new[] { typeof(Delegate), typeof(Delegate) });
+
+                // this.PropertyChanged = (PropertyChangedEventHandler)Delegate.Combine(this.PropertyChanged, value);
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this（当前实例）到栈
+                il.Emit(OpCodes.Ldarg_0);                                // 再次加载 this，用于访问字段
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载 this.PropertyChanged 字段值
+                il.Emit(OpCodes.Ldarg_1);                                // 加载方法参数 value（订阅者委托）
+                il.Emit(OpCodes.Call, combine);                          // 调用 Delegate.Combine(a, b)
+                il.Emit(OpCodes.Castclass, eventHandlerType);            // 强转回 PropertyChangedEventHandler 类型
+                il.Emit(OpCodes.Stfld, propertyChangedField);            // 赋值给 this.PropertyChanged
+                il.Emit(OpCodes.Ret);                                    // return
+            }
+
+            // remove_PropertyChanged
+            var removeMethod = typeBuilder.DefineMethod("remove_PropertyChanged", MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.Virtual | MethodAttributes.HideBySig, null, new[] { eventHandlerType });
+            {
+                var il = removeMethod.GetILGenerator();
+                var remove = typeof(Delegate).GetMethod("Remove", new[] { typeof(Delegate), typeof(Delegate) });
+
+                // this.PropertyChanged = (PropertyChangedEventHandler)Delegate.Remove(this.PropertyChanged, value);
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                il.Emit(OpCodes.Ldarg_0);                                // 再次加载 this
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载字段 this.PropertyChanged
+                il.Emit(OpCodes.Ldarg_1);                                // 加载 value（要移除的委托）
+                il.Emit(OpCodes.Call, remove);                           // 调用 Delegate.Remove(a, b)
+                il.Emit(OpCodes.Castclass, eventHandlerType);            // 转换为 PropertyChangedEventHandler
+                il.Emit(OpCodes.Stfld, propertyChangedField);            // 设置 this.PropertyChanged = 结果
+                il.Emit(OpCodes.Ret);                                    // return
+            }
+
+            eventBuilder.SetAddOnMethod(addMethod);
+            eventBuilder.SetRemoveOnMethod(removeMethod);
+
+            // 定义 OnPropertyChanged 方法
+            var onPropertyChangedMethod = typeBuilder.DefineMethod(
+                "OnPropertyChanged",
+                MethodAttributes.Private,
+                null,
+                new[] { typeof(string) });
+
+            {
+                var il = onPropertyChangedMethod.GetILGenerator();
+                var label = il.DefineLabel();
+
+                // if (PropertyChanged == null) return;
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载 this.PropertyChanged
+                il.Emit(OpCodes.Brfalse_S, label);                       // 如果为空（null），跳转到 label，跳过通知调用
+
+                // PropertyChanged.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this（委托调用目标）
+                il.Emit(OpCodes.Ldfld, propertyChangedField);            // 加载 PropertyChanged 委托
+                il.Emit(OpCodes.Ldarg_0);                                // 加载 this 作为 sender 参数
+                il.Emit(OpCodes.Ldarg_1);                                // 加载 propertyName 参数（string）
+                il.Emit(OpCodes.Newobj, typeof(PropertyChangedEventArgs).GetConstructor(new[] { typeof(string) })); // 构造 new PropertyChangedEventArgs(propertyName)
+                il.Emit(OpCodes.Callvirt, typeof(PropertyChangedEventHandler).GetMethod("Invoke")); // 调用委托 Invoke(sender, args)
+                il.MarkLabel(label);                                     // 跳转目标（如果委托为 null 则跳转至此）
+                il.Emit(OpCodes.Ret);                                    // return
+            }
+
+            // 为每个属性生成字段 + get/set + OnPropertyChanged 调用
+            foreach (var kv in properties)
+            {
+                string propName = kv.Key;
+                Type propType = kv.Value ?? typeof(object);
+
+                var fieldBuilder = typeBuilder.DefineField("_" + propName, propType, FieldAttributes.Private);
+
+                var propertyBuilder = typeBuilder.DefineProperty(propName, PropertyAttributes.HasDefault, propType, null);
+
+                var getter = typeBuilder.DefineMethod("get_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    propType, Type.EmptyTypes);
+
+                {
+                    // get_PropertyName()
+                    var il = getter.GetILGenerator();
+                    il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                    il.Emit(OpCodes.Ldfld, fieldBuilder);                    // 读取私有字段 _PropertyName
+                    il.Emit(OpCodes.Ret);                                    // 返回字段值
+                }
+
+                var setter = typeBuilder.DefineMethod("set_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    null, new[] { propType });
+
+                {
+                    // set_PropertyName(value)
+                    var il = setter.GetILGenerator();
+                    il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                    il.Emit(OpCodes.Ldarg_1);                                // 加载 value 参数
+                    il.Emit(OpCodes.Stfld, fieldBuilder);                    // 设置字段 _PropertyName = value
+
+                    il.Emit(OpCodes.Ldarg_0);                                // 加载 this
+                    il.Emit(OpCodes.Ldstr, propName);                        // 加载属性名字符串作为通知参数
+                    il.Emit(OpCodes.Call, onPropertyChangedMethod);          // 调用 OnPropertyChanged(propName)
+
+                    il.Emit(OpCodes.Ret);                                    // return
+                }
+
+                propertyBuilder.SetGetMethod(getter);
+                propertyBuilder.SetSetMethod(setter);
+            }
+
+            var dynamicType = typeBuilder.CreateType();
+            typeCache[typeName] = dynamicType;
+            return dynamicType;
+        }
+        #region 动态创建对象并赋值
+
+        /// <summary>
+        ///  创建动态类型及其对象实例
+        /// </summary>
+        /// <param name="properties"></param>
+        /// <param name="typeName"></param>
+        /// <returns></returns>
+        public static object CreateObjectWithProperties(IDictionary<string, object> properties, string typeName)
+        {
+            // 如果类型已经缓存，直接返回缓存的类型
+            if (typeCache.ContainsKey(typeName))
+            {
+                return Activator.CreateInstance(typeCache[typeName]);
+            }
+
+            // 定义动态程序集和模块
+            var assemblyName = new AssemblyName("DynamicAssembly");
+            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+            var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
+
+            // 定义动态类型
+            var typeBuilder = moduleBuilder.DefineType(typeName, TypeAttributes.Public);
+
+            // 为每个属性名和值添加相应的属性到动态类型中
+            foreach (var kvp in properties)
+            {
+                string propName = kvp.Key;
+                object propValue = kvp.Value;
+                Type propType;
+
+                if (propValue is IList<Dictionary<string, object>>) // 处理数组类型
+                {
+                    var nestedPropValue = (propValue as IList<Dictionary<string, object>>)[0];
+                    var nestedType = CreateObjectWithProperties(nestedPropValue, $"{propName}Element");
+                    propType = nestedType.GetType().MakeArrayType(); // 创建数组类型
+                }
+                else if (propValue is Dictionary<string, object> nestedProperties)
+                {
+                    // 如果值是嵌套的字典，递归创建嵌套类型
+                    propType = CreateObjectWithProperties(nestedProperties, $"{typeName}_{propName}").GetType();
+                }
+                else
+                {
+                    // 如果是普通类型，使用值的类型
+                    propType = propValue?.GetType() ?? typeof(object);
+                }
+
+                // 定义私有字段和公共属性
+                var fieldBuilder = typeBuilder.DefineField("_" + propName, propType, FieldAttributes.Private);
+                var propertyBuilder = typeBuilder.DefineProperty(propName, PropertyAttributes.HasDefault, propType, null);
+
+                // 定义 getter 方法
+                var getMethodBuilder = typeBuilder.DefineMethod(
+                    "get_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    propType,
+                    Type.EmptyTypes);
+
+                var getIL = getMethodBuilder.GetILGenerator();
+                getIL.Emit(OpCodes.Ldarg_0);
+                getIL.Emit(OpCodes.Ldfld, fieldBuilder);
+                getIL.Emit(OpCodes.Ret);
+
+                // 定义 setter 方法
+                var setMethodBuilder = typeBuilder.DefineMethod(
+                    "set_" + propName,
+                    MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
+                    null,
+                    new Type[] { propType });
+
+                var setIL = setMethodBuilder.GetILGenerator();
+                setIL.Emit(OpCodes.Ldarg_0);
+                setIL.Emit(OpCodes.Ldarg_1);
+                setIL.Emit(OpCodes.Stfld, fieldBuilder);
+                setIL.Emit(OpCodes.Ret);
+
+                // 将 getter 和 setter 方法添加到属性
+                propertyBuilder.SetGetMethod(getMethodBuilder);
+                propertyBuilder.SetSetMethod(setMethodBuilder);
+            }
+
+            // 创建类型并缓存
+            var dynamicType = typeBuilder.CreateType();
+            typeCache[typeName] = dynamicType;
+
+            // 创建对象实例
+            return Activator.CreateInstance(dynamicType);
+        }
+
+        /// <summary>
+        ///  递归设置对象的属性值
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="properties"></param>
+        private static void SetPropertyValues(object obj, Dictionary<string, object> properties)
+        {
+            var objType = obj.GetType();
+
+            foreach (var kvp in properties)
+            {
+                var propInfo = objType.GetProperty(kvp.Key);
+                object value = kvp.Value;
+
+                // 如果值是嵌套的字典类型，递归处理嵌套对象
+                if (value is Dictionary<string, object> nestedProperties)
+                {
+                    // 创建嵌套对象
+                    var nestedObj = Activator.CreateInstance(propInfo.PropertyType);
+
+                    // 递归设置嵌套对象的值
+                    SetPropertyValues(nestedObj, nestedProperties);
+
+                    // 将嵌套对象赋值给属性
+                    propInfo.SetValue(obj, nestedObj);
+                }
+                else
+                {
+                    // 直接赋值给属性
+                    propInfo.SetValue(obj, value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 递归设置对象的属性值（带验证）
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="properties"></param>
+        /// <returns></returns>
+        public static bool SetPropertyValuesWithValidation(object obj, IDictionary<string, object> properties)
+        {
+            var objType = obj.GetType();
+            bool allSuccessful = true; // 标记是否所有属性赋值成功
+
+            foreach (var kvp in properties)
+            {
+                var propName = kvp.Key;
+                var propValue = kvp.Value;
+
+                var propInfo = objType.GetProperty(propName);
+
+                if (propInfo == null)
+                {
+                    // 属性不存在，打印警告并标记失败
+                    SereinEnv.WriteLine(InfoType.WARN, $"属性 '{propName}' 不存在于类型 '{objType.Name}' 中，跳过赋值。");
+                    allSuccessful = false;
+                    continue;
+                }
+
+                // 检查属性类型是否与要赋的值兼容
+                var targetType = propInfo.PropertyType;
+                if (!IsCompatibleType(targetType, propValue))
+                {
+                    // 如果类型不兼容，打印错误并标记失败
+                    SereinEnv.WriteLine(InfoType.ERROR, $"无法将类型 '{propValue?.GetType().Name}' 赋值给属性 '{propName}' (Type: {targetType.Name})，跳过赋值。");
+                    allSuccessful = false;
+                    continue;
+                }
+
+                try
+                {
+                    // 如果值是一个嵌套对象，递归赋值
+                    if (propValue is Dictionary<string, object> nestedProperties)
+                    {
+                        var nestedObj = Activator.CreateInstance(propInfo.PropertyType);
+                        if (nestedObj != null && SetPropertyValuesWithValidation(nestedObj, nestedProperties))
+                        {
+                            propInfo.SetValue(obj, nestedObj);
+                        }
+                        else
+                        {
+                            allSuccessful = false; // 嵌套赋值失败
+                        }
+                    }
+                    else if (propValue is IList<Dictionary<string, object>> list) // 处理列表
+                    {
+                        // 获取目标类型的数组元素类型
+                        var elementType = propInfo.PropertyType.GetElementType();
+                        if (elementType != null)
+                        {
+                            var array = Array.CreateInstance(elementType, list.Count);
+
+                            for (int i = 0; i < list.Count; i++)
+                            {
+                                var item = Activator.CreateInstance(elementType);
+                                if (item != null && SetPropertyValuesWithValidation(item, list[i]))
+                                {
+                                    array.SetValue(item, i);
+                                }
+                                else
+                                {
+                                    allSuccessful = false; // 赋值失败
+                                }
+                            }
+                            propInfo.SetValue(obj, array);
+                        }
+                    }
+                    else
+                    {
+                        // 直接赋值
+                        propInfo.SetValue(obj, propValue);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SereinEnv.WriteLine(InfoType.ERROR, $"为属性 '{propName}' 赋值时发生异常：{ex.Message}");
+                    allSuccessful = false;
+                }
+            }
+
+            return allSuccessful;
+        }
+
+        // 检查类型兼容性的方法（支持嵌套类型）
+        static bool IsCompatibleType(Type targetType, object value)
+        {
+            if (value == null)
+            {
+                // 如果值为null，且目标类型是引用类型或者可空类型，则兼容
+                return !targetType.IsValueType || Nullable.GetUnderlyingType(targetType) != null;
+            }
+
+            // 检查值的类型是否与目标类型相同，或是否可以转换为目标类型
+            if (targetType.IsAssignableFrom(value.GetType()))
+            {
+                return true;
+            }
+
+            // 处理数组类型
+            if (targetType.IsArray)
+            {
+                // 检查数组的元素类型与值的类型兼容
+                var elementType = targetType.GetElementType();
+                return value is IList<Dictionary<string, object>>; // 假设值是一个列表，具体处理逻辑在赋值时
+            }
+
+            // 处理嵌套类型的情况
+            if (value is Dictionary<string, object> && targetType.IsClass && !targetType.IsPrimitive)
+            {
+                // 如果目标类型是一个复杂对象，并且值是一个字典，可能是嵌套对象
+                return true; // 假设可以递归处理嵌套对象
+            }
+
+            return false;
+        }
+
+        #endregion
+
+    }
+}

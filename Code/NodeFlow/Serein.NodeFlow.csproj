@@ -1,0 +1,90 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Version>1.2.4.1</Version>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BaseOutputPath>..\.\.Output</BaseOutputPath>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>SereinFow</Title>
+    <Description>动态流程的运行环境，非二次开发无须添加</Description>
+    <PackageProjectUrl></PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>.\obj\g</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Base\**" />
+    <Compile Remove="bin\**" />
+    <Compile Remove="SerinExpression\**" />
+    <Compile Remove="Tool\SereinExpression\**" />
+    <EmbeddedResource Remove="Base\**" />
+    <EmbeddedResource Remove="bin\**" />
+    <EmbeddedResource Remove="SerinExpression\**" />
+    <EmbeddedResource Remove="Tool\SereinExpression\**" />
+    <None Remove="Base\**" />
+    <None Remove="bin\**" />
+    <None Remove="SerinExpression\**" />
+    <None Remove="Tool\SereinExpression\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ConnectionType.cs" />
+    <Compile Remove="DynamicContext.cs" />
+    <Compile Remove="Env\EnvMsgTheme.cs" />
+    <Compile Remove="Env\LocalFlowEnvironment_2.cs" />
+    <Compile Remove="Env\LocalFlowEnvironment_T.cs" />
+    <Compile Remove="Env\MsgControllerOfClient.cs" />
+    <Compile Remove="Env\MsgControllerOfServer.cs" />
+    <Compile Remove="Env\RemoteFlowEnvironment.cs" />
+    <Compile Remove="MethodDetails.cs" />
+    <Compile Remove="Model\CompositeConditionNode.cs" />
+    <Compile Remove="NodeStaticConfig.cs" />
+    <Compile Remove="Tool\Attribute.cs" />
+    <Compile Remove="Tool\DynamicTool.cs" />
+    <Compile Remove="Tool\ExpressionHelper.cs" />
+    <Compile Remove="Tool\FlowLibraryAssemblyContext2.cs" />
+    <Compile Remove="Tool\NodeModelBaseFunc.cs" />
+    <Compile Remove="Tool\ObjDynamicCreateHelper.cs" />
+    <Compile Remove="Tool\TcsSignal.cs" />
+    <Compile Remove="Tool\ToCSharpCodeHelper.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.13.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.6" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Serein.Extend.NewtonsoftJson\Serein.Extend.NewtonsoftJson.csproj" />
+    <ProjectReference Include="..\Serein.Library.NodeGenerator\Serein.Library.NodeGenerator.csproj"  OutputItemType="Analyzer"/>
+
+
+    <ProjectReference Include="..\Library\Serein.Library.csproj" />
+    
+    <ProjectReference Include="..\Serein.Script\Serein.Script.csproj" />
+  </ItemGroup>
+
+</Project>

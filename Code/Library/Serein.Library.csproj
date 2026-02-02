@@ -1,0 +1,96 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Title>SereinFow</Title>
+    <Version>1.2.4.1</Version>
+    <Description>动态节点流、可视化编辑的基本依赖，支持导入C# DLL生成自定义节点，提供二次开发支持，适合用于可视化编程和流程设计</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/fhhyyp/serein-flow</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    
+    <TargetFrameworks>net8.0;net462</TargetFrameworks>
+    <BaseOutputPath>..\.\.Output</BaseOutputPath>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <LangVersion>latest</LangVersion>
+    <SatelliteResourceLanguages>no</SatelliteResourceLanguages>
+
+
+    <Optimize>False</Optimize>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>.\obj\g</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0|AnyCPU'">
+    <NoWarn>1701;1702;1573</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net462|AnyCPU'">
+    <NoWarn>1701;1702;1573</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0|AnyCPU'">
+    <NoWarn>1701;1702;1573</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net462|AnyCPU'">
+    <NoWarn>1701;1702;1573</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Http\**" />
+    <Compile Remove="Network\**" />
+    <Compile Remove="Utils\SereinExpression\**" />
+    <Compile Remove="Utils\SerinExpression\**" />
+    <EmbeddedResource Remove="Http\**" />
+    <EmbeddedResource Remove="Network\**" />
+    <EmbeddedResource Remove="Utils\SereinExpression\**" />
+    <EmbeddedResource Remove="Utils\SerinExpression\**" />
+    <None Remove="Http\**" />
+    <None Remove="Network\**" />
+    <None Remove="Utils\SereinExpression\**" />
+    <None Remove="Utils\SerinExpression\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Api\IFlipflopContext.cs" />
+    <Compile Remove="Enums\FlipflopStateType.cs" />
+    <Compile Remove="Extension\FlowModelExtension.cs" />
+    <Compile Remove="FlowNode\Attribute.cs" />
+    <Compile Remove="FlowNode\Env\FlowCallTree.cs" />
+    <Compile Remove="FlowNode\FlipflopContext.cs" />
+    <Compile Remove="FlowNode\NodeModelBaseData.cs" />
+    <Compile Remove="FlowNode\NodeModelBaseFunc.cs" />
+    <Compile Remove="FlowNode\ScriptFlowApi.cs" />
+    <Compile Remove="Utils\ExpressionHelper.cs" />
+    <Compile Remove="Utils\NativeDllHelper.cs" />
+    <Compile Remove="Utils\RemoteMsgUtil.cs" /> 
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Reactive" Version="6.0.1" />
+    <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />-->
+    <!--  ReferenceOutputAssembly="false" -->
+    <!--<ProjectReference Include="..\Serein.Library.MyGenerator\Serein.Library.NodeGenerator.csproj " OutputItemType="Analyzer" />-->
+    <ProjectReference Include="..\Serein.Library.NodeGenerator\Serein.Library.NodeGenerator.csproj" OutputItemType="Analyzer" />
+  </ItemGroup>
+
+</Project>
