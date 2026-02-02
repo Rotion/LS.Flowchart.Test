@@ -1,0 +1,34 @@
+﻿<UserControl
+    x:Class="LS.Flowchart.ModuleControls.DeviceTag"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:LS.Flowchart.ModuleControls"
+    xmlns:lsuc="clr-namespace:LS.WPF.Core.Library;assembly=LS.WPF.Core.Library"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Width="400"
+    MinHeight="50"
+    Background="{DynamicResource TabItem.ActivedBackground}"
+    FontSize="25"
+    Foreground="Black"
+    mc:Ignorable="d">
+    <Grid>
+        <TextBlock
+            x:Name="_name"
+            Margin="5,0,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            d:Text="TCP 客户端100"
+            FontSize="{Binding FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=UserControl}}"
+            Text="{Binding Path=ModuleValue.Name, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+        <lsuc:SquareCheckBox
+            Width="80"
+            Height="40"
+            Margin="0,0,10,0"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            d:IsChecked="False"
+            IsChecked="{Binding Path=IsStart, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+    </Grid>
+</UserControl>

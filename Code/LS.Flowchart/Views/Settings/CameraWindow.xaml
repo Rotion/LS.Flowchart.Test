@@ -1,0 +1,126 @@
+﻿<Window
+    x:Class="LS.Flowchart.Views.Settings.CameraWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:LS.Flowchart.Views.Settings"
+    xmlns:lsuc="clr-namespace:LS.WPF.Core.Library;assembly=LS.WPF.Core.Library"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    Title="CameraWindow"
+    Width="1000"
+    Height="600"
+    Background="{DynamicResource DefaultGray}"
+    ResizeMode="NoResize"
+    ShowInTaskbar="False"
+    Topmost="True"
+    WindowStartupLocation="CenterScreen"
+    WindowStyle="None"
+    mc:Ignorable="d">
+    <Grid>
+        <Border BorderBrush="{DynamicResource DefaultBackground}" BorderThickness="2" />
+        <Grid Margin="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40" />
+                <RowDefinition />
+            </Grid.RowDefinitions>
+            <Grid
+                x:Name="winBar"
+                Grid.Row="0"
+                Background="{StaticResource DefaultBackground}">
+
+                <TextBlock
+                    Margin="3,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="24"
+                    FontWeight="Bold"
+                    Foreground="{StaticResource DefaultForeground}"
+                    Text="相机管理" />
+                <lsuc:IconSmallButton
+                    Width="40"
+                    Height="40"
+                    Margin="0,0,5,0"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Background="{StaticResource DefaultBackground}"
+                    Command="{Binding CloseCommand}"
+                    IconType="Close"
+                    MouseOverBrush="{DynamicResource OrangeBrush}"
+                    PathMargin="5" />
+                <Border
+                    Margin="0,2,0,0"
+                    BorderBrush="{DynamicResource OrangeBrush}"
+                    BorderThickness="0,2,0,0" />
+            </Grid>
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="50" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Background="{DynamicResource DefaultGray}">
+                        <TextBlock
+                            Margin="10,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontSize="20"
+                            FontWeight="Bold"
+                            Text="设备列表" />
+                        <lsuc:IconSmallButton
+                            Width="35"
+                            Height="35"
+                            Margin="0,0,5,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource DefaultGray}"
+                            Command="{Binding AddCameraCommand}"
+                            MouseOverBrush="{DynamicResource OrangeBrush}"
+                            PathData="{DynamicResource 添加}" />
+                    </Grid>
+                    <ListBox
+                        x:Name="_cameraList"
+                        Grid.Row="1"
+                        Margin="2"
+                        Background="{DynamicResource DefaultGray}"
+                        BorderBrush="Transparent"
+                        BorderThickness="0"
+                        ItemsSource="{Binding CmaeraList, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        SelectedItem="{Binding SelectedCamera, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <!--  定义ListBoxItem的容器样式  -->
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <!--  默认背景色  -->
+                                <Setter Property="Background" Value="{DynamicResource DefaultGray}" />
+                                <Style.Triggers>
+                                    <!--  选中状态背景色  -->
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource TabItem.ActivedBackground}" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Height="35">
+                                    <TextBlock
+                                        Margin="5,0,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        d:Text="相机1" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+                <Grid
+                    x:Name="_cameraParmGrid"
+                    Grid.Column="1"
+                    Background="{DynamicResource TabItem.ActivedBackground}" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
