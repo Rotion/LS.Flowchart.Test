@@ -1,17 +1,11 @@
-## ⛺ 社群
-
-QQ群 955830545  
-提供技术交流与支持，欢迎加入。  
-因为个人是社畜，所以可能不会及时回复，请谅解。  
-
 # Flow Visualization Framework
 
 This project supports both **English** and **中文** documentation.
 
 ## 🌐 Language
 
-- [🇬🇧 English Documentation](./flow_visualizer_en.md)
-- [🇨🇳 中文文档](./flow_visualizer_cn.md)
+- [🇬🇧 English Documentation](./Code/flow_visualizer_en.md)
+- [🇨🇳 中文文档](./Code/flow_visualizer_cn.md)
 
 ---
 
